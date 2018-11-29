@@ -1,0 +1,32 @@
+{
+  "name": "@bambus/roles",
+  "version": "0.1.0",
+  "description": "Bambus Plugin for authorization",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "tsc -d -p ./ --outDir dist/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/piceaTech/bambus-roles.git"
+  },
+  "author": "Felix Fichte <dev@spruce.de>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/piceaTech/bambus-roles/issues"
+  },
+  "homepage": "https://github.com/piceaTech/bambus-roles#readme",
+  "dependencies": {
+    "@bambus/main": "^0.1.2",
+    "deepmerge": "^2.2.1",
+    "koa": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.0.46",
+    "@types/koa-router": "^7.0.33",
+    "@types/node": "^10.12.3",
+    "typescript": "^3.1.6"
+  }
+}
