@@ -10,8 +10,8 @@ export const rolesSymbol = Symbol('roles');
 
 import defaultConfig, {configInterface} from './config';
 
-interface strategyDef {strategy: string}
-interface ruleDef {rule:string}
+interface strategyDef {strategy: string, ruleConfig: object}
+interface ruleDef {rule:string, ruleConfig: object}
 
 type stratOrRule =  strategyDef | ruleDef
 
@@ -37,7 +37,6 @@ export default function(bambus: Bambus, userConfig: configInterface){
   checkConsistencyForConfig(config);
 
   for(let controller in bambus.controllers){
-    // debug(controller);
     let currentController = bambus.controllers[controller];
     debug(controller, currentController);
     debug(currentController.router)
@@ -47,6 +46,12 @@ export default function(bambus: Bambus, userConfig: configInterface){
       let ruleToApply = '';
       let [httpMethod, ...rest] = needRole.split(' ');
       if(isstrategyDef(strategyOrRole)){
+        if(!config.strategies[strategyOrRole.strategy]){
+          console.error(`ERROR: The Strategy "${strategyOrRole.strategy}" was not found in the Config.`);
+          console.error(`ERROR: Only found the following strategies: ${Object.keys(config.strategies).join(', ')}`);
+          console.error(`ERROR: The Strategy was applied to the controller "${currentController.name}Controller".`);
+          process.exit(1);
+        }
         ruleToApply = config.strategies[strategyOrRole.strategy][httpMethod];
       }
       else{
@@ -61,11 +66,11 @@ export default function(bambus: Bambus, userConfig: configInterface){
         process.exit(1);
       }
       try{
-        toExecute(needRole, rest.join(' '), config.rules[ruleToApply].bind(config));
+        toExecute('role ' + needRole, rest.join(' '), (config.rules[ruleToApply](strategyOrRole.ruleConfig)).bind(config));
       }
       catch(e){
         console.error(`ERROR: Could not apply a role authorization function for "${currentController.name}Controller". Rule was ${ruleToApply}. Thrown error:`);
-        console.log(e);
+        console.error(e);
         process.exit(1);
       }
     }
@@ -97,47 +102,44 @@ function joinConfigs(defaultConfig:configInterface, userConfig:configInterface =
   return config;
 }
 
-export function strategy(strategy: string){
+export function strategy(strategy: string, ruleConfig: object){
   return function(constructor: ControllerConstructor) { // this is the decorator
     if(!constructor.prototype[rolesSymbol]){
       constructor.prototype[rolesSymbol] = {}
     }
-
     for (let name in (constructor.prototype[actionsSymbol] || {})) {
-      // debug('obj.path', obj.path);
       if(constructor.prototype[rolesSymbol][name] === undefined){
-        constructor.prototype[rolesSymbol][name] = {strategy: strategy};
+        constructor.prototype[rolesSymbol][name] = {strategy: strategy, ruleConfig: ruleConfig};
       }
     }
 
     for (let name in (constructor.prototype[routesSymbol] || {})) {
-      // debug('obj.path', obj.path);
       if(constructor.prototype[rolesSymbol][name] === undefined){
-        constructor.prototype[rolesSymbol][name] = {strategy: strategy};
+        constructor.prototype[rolesSymbol][name] = {strategy: strategy, ruleConfig: ruleConfig};
       }
     }
   }
 }
 
-export function useRule(rule: string){
+export function useRule(rule: string, ruleConfig = {}){
   return function (target: Controller, propertyKey: string, descriptor: PropertyDescriptor) { // this is the decorator
     if(!target[rolesSymbol]){
       target[rolesSymbol] = {}
     }
     const obj = findRouteOrAction(target, propertyKey);
-    target[rolesSymbol][obj.method + ' ' + obj.path] = {rule};
+    target[rolesSymbol][obj.method + ' ' + obj.path] = {rule, ruleConfig};
   }
 }
 
 
 function findRouteOrAction(target: Controller, name: string) {
-  let obj = target[actionsSymbol].filter(function(item){
+  let obj = target[actionsSymbol].filter(function(item: controllerFunction){
     return item.name === name;
   })[0];
   if(!!obj){
     return obj
   }
-  obj = target[routesSymbol].filter(function(item){
+  obj = target[routesSymbol].filter(function(item: controllerFunction){
       return item.name === name;
     })[0];
   return obj;

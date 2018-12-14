@@ -1,8 +1,17 @@
 import { Context } from 'koa';
 
+// body is defined because bodyParser is used
+declare module "koa" {
+    interface Request {
+        body: any;
+        rawBody: string;
+    }
+}
+
+
 export interface rulesConfig{
   rules?: {
-    [index: string]: (ctx: Context, next: () => Promise<any>) => any
+    [index: string]: (config?: object) => ((ctx: Context, next: () => Promise<any>) => any)
   };
   helper?: {
     [index: string]: Function;
@@ -11,65 +20,83 @@ export interface rulesConfig{
 
 const toExport: rulesConfig = {rules:{}, helper:{}};
 toExport.rules.allowAll = allowAll;
-function allowAll(ctx: Context, next: Function){
-  return next();
+function allowAll(){
+  return function allowAllInner(ctx: Context, next: Function){
+    return next();
+  }
 }
 toExport.rules.denyAll = denyAll;
-function denyAll(ctx: Context, next: Function){
-  const user = ctx.state.user;
-  if(isAdmin(user, this.superUsersRoles)){
-    //ignore for now
-    // return next();
+function denyAll(){
+  return function denyAllInner(ctx: Context, next: Function){
+    const user = ctx.state.user;
+    if(isAdmin(user, this.superUsersRoles)){
+      return next();
+    }
+    return ctx.throw(404);
   }
-  return ctx.throw(403);
 }
 toExport.rules.allowOwn = allowOwn;
-function allowOwn(ctx: Context, next: Function){
-  const user = ctx.state.user;
-  if(isAdmin(user, this.superUsersRoles)){
-    //ignore for now
-    // return next();
-  }
-  switch(ctx.request.method){
-    case 'GET':
-      ctx.state.query = {
-        userId: user.id
-      }
+function allowOwn(ruleConfig = {field: 'userId'}){
+
+  let field = ruleConfig.field
+  return function allowOwnInner(ctx: Context, next: Function){
+    const user = ctx.state.user;
+    if(isAdmin(user, this.superUsersRoles)){
       return next();
-      break;
-    case 'POST':
-      // body has to contain user id
-      break;
-    case 'PATCH':
-      // userID can not be contained
-      // set userid in query
-      break;
-    case 'DELETE':
-      // must contain userid
-      break;
+    }
+    switch(ctx.request.method){
+      case 'GET':
+        ctx.state.filter = {
+          [field]: user.id
+        }
+        return next();
+      case 'POST':
+        if(ctx.request.body && ctx.request.body.data && ctx.request.body.data.attributes && +ctx.request.body.data.attributes[field] === user.id){
+          return next();
+        }
+        else{
+          return ctx.throw(401)
+        }
+      case 'PATCH':
+        let didChangeId = ctx.request.body && ctx.request.body.data && ctx.request.body.data.attributes && +ctx.request.body.data.attributes[field] !== user.id;
+        if(didChangeId){
+          return ctx.throw(401)
+        }
+        ctx.state.filter = {
+          id: ctx.params.id,
+          [field]: user.id
+        }
+        return next();
+      case 'DELETE':
+        ctx.state.filter = {
+          id: ctx.params.id,
+          [field]: user.id
+        }
+        return next();
+    }
   }
 }
 toExport.rules.allowOwnUser = allowOwnUser;
-function allowOwnUser(ctx: Context, next: Function){
-  const user = ctx.state.user;
-  if(isAdmin(user, this.superUsersRoles)){
-    //ignore for now
-    // return next();
-  }
-  switch(ctx.request.method){
-
-    case 'GET':
-      if(+ctx.params.id !== user.id){
-        return ctx.throw(404);
-      }
+function allowOwnUser(){
+  return function allowOwnUserInner(ctx: Context, next: Function){
+    const user = ctx.state.user;
+    if(isAdmin(user, this.superUsersRoles)){
       return next();
-      break;
-    case 'PATCH':
-    ctx.state.query = {
-        id: user.id
-      }
-      return next();
-      break;
+    }
+    switch(ctx.request.method){
+      case 'GET':
+        if(+ctx.params.id !== user.id){
+          return ctx.throw(404);
+        }
+        return next();
+        break;
+      case 'PATCH':
+      ctx.state.filter = {
+          id: user.id
+        }
+        return next();
+        break;
+    }
   }
 }
 

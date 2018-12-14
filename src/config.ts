@@ -1,7 +1,10 @@
 import rules from './rules';
 import { Context } from 'koa';
 
-export interface configInterface {roles?: string[], rules?: {[index: string]: (ctx: Context, next: () => Promise<any>) => any}, strategies?: {[index: string]: {[index: string]: string}}, superUsersRoles?: string[]}
+export interface configInterface {
+    roles?: string[],
+    rules?: {[index: string]: (config?: object) => ((ctx: Context, next: () => Promise<any>) => any)}
+    strategies?: {[index: string]: {[index: string]: string}}, superUsersRoles?: string[]}
 
 
 
@@ -18,7 +21,7 @@ const config : configInterface = {
       'delete': 'denyAll',
       'patch': 'denyAll'
     },
-    'loggedIn': {
+    'own': {
       'get': 'allowOwn',
       'post': 'allowOwn',
       'delete': 'allowOwn',
