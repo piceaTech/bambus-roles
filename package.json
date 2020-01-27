@@ -1,6 +1,6 @@
 {
   "name": "@bambus/roles",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Bambus Plugin for authorization",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
