@@ -20,9 +20,11 @@
   },
   "homepage": "https://github.com/piceaTech/bambus-roles#readme",
   "dependencies": {
-    "@bambus/main": "^0.1.2",
     "deepmerge": "^2.2.1",
     "koa": "^2.6.1"
+  },
+  "peerDependencies": {
+    "@bambus/main": "^0.1.7"
   },
   "devDependencies": {
     "@types/koa": "^2.0.46",
